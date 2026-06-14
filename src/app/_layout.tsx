@@ -1,15 +1,39 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { Stack } from 'expo-router';
+import { View, Text } from 'react-native';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+//Icons
+import { ShoppingCart } from 'lucide-react-native'
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack>
+      <Stack.Screen
+        name="index"
+        options={{
+            title: 'Ember & Co.',
+            headerTitle: () => {
+                return (
+                    <View>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold' }}>
+                        Ember & Co.
+                    </Text>
+                    <Text style={{ fontSize: 12 }}>
+                        Scan. Order. Enjoy.
+                    </Text>
+                    </View>
+                );
+            },
+            headerStyle: {
+                backgroundColor: '#d64700',
+            },
+            headerRight: () => {
+                return (
+                    <ShoppingCart color='black' size={22} />
+                );
+            }
+
+        }}
+      />
+    </Stack>
   );
 }
