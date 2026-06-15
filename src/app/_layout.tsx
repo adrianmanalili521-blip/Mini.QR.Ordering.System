@@ -24,7 +24,7 @@ export default function RootLayout() {
                 );
             },
             headerStyle: {
-                backgroundColor: '#d64700',
+                backgroundColor: '#de7a28',
             },
             headerRight: () => {
                 return (
