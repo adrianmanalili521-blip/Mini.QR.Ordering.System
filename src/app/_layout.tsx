@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet, ScrollView } from 'react-native';
 import { useState } from 'react';
 
 //Icons
@@ -7,6 +7,7 @@ import { ShoppingCart, User } from 'lucide-react-native'
 
 //Context
 import { CartProvider, useCart } from '../../context/CartContext';
+import { fetchOrders, OrderRecord } from '../lib/api'
 
 //Screens
 import CheckoutScreen from './checkout';
@@ -16,14 +17,23 @@ function RootLayoutContent() {
   const [adminVisible, setAdminVisible] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [orders, setOrders] = useState<OrderRecord[] | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const { cart } = useCart();
   const cartCount = cart.length;
 
-  const handleAdminSubmit = () => {
+  const handleAdminSubmit = async () => {
     if (adminPassword === 'admin123') {
-      setAdminVisible(false);
-      setAdminPassword('');
-      setAdminError(null);
+      setOrdersLoading(true)
+      setAdminError(null)
+      try {
+        const fetchedOrders = await fetchOrders()
+        setOrders(fetchedOrders)
+      } catch (error) {
+        setAdminError('Unable to load orders from backend')
+      } finally {
+        setOrdersLoading(false)
+      }
     } else {
       setAdminError('Incorrect password')
     }
@@ -84,22 +94,47 @@ function RootLayoutContent() {
         <View style={styles.adminModalOverlay}>
           <View style={styles.adminModal}>
             <Text style={styles.adminTitle}>Admin Access</Text>
-            <TextInput
-              value={adminPassword}
-              onChangeText={setAdminPassword}
-              placeholder="Enter password"
-              secureTextEntry
-              style={styles.adminInput}
-            />
-            {adminError ? <Text style={styles.adminError}>{adminError}</Text> : null}
-            <View style={styles.adminButtons}>
-              <TouchableOpacity style={styles.adminButton} onPress={handleAdminSubmit}>
-                <Text style={styles.adminButtonText}>Submit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.adminButton, styles.adminCancel, styles.adminButtonSpacing]} onPress={() => setAdminVisible(false)}>
-                <Text style={[styles.adminButtonText, styles.adminCancelText]}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+            {orders ? (
+              <ScrollView contentContainerStyle={styles.adminOrderList}>
+                {orders.length === 0 ? (
+                  <Text style={styles.adminOrderEmpty}>No orders yet.</Text>
+                ) : (
+                  orders.map((order) => (
+                    <View key={order.id} style={styles.orderCard}>
+                      <Text style={styles.orderHeading}>Order #{order.id}</Text>
+                      <Text style={styles.orderMeta}>Total: P{order.total.toFixed(2)}</Text>
+                      <Text style={styles.orderMeta}>Payment: {order.payment_method}</Text>
+                      <Text style={styles.orderMeta}>Status: {order.status}</Text>
+                      <Text style={styles.orderMeta}>Created: {new Date(order.created_at).toLocaleString()}</Text>
+                      {order.items.map((item) => (
+                        <Text style={styles.orderItem} key={item.id + item.name}>
+                          {item.quantity} x {item.name}
+                        </Text>
+                      ))}
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            ) : (
+              <>
+                <TextInput
+                  value={adminPassword}
+                  onChangeText={setAdminPassword}
+                  placeholder="Enter password"
+                  secureTextEntry
+                  style={styles.adminInput}
+                />
+                {adminError ? <Text style={styles.adminError}>{adminError}</Text> : null}
+                <View style={styles.adminButtons}>
+                  <TouchableOpacity style={styles.adminButton} onPress={handleAdminSubmit}>
+                    <Text style={styles.adminButtonText}>Submit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.adminButton, styles.adminCancel, styles.adminButtonSpacing]} onPress={() => setAdminVisible(false)}>
+                    <Text style={[styles.adminButtonText, styles.adminCancelText]}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -207,5 +242,37 @@ const styles = StyleSheet.create({
   },
   adminCancelText: {
     color: '#de7a28',
+  },
+  adminOrderList: {
+    paddingBottom: 16,
+  },
+  adminOrderEmpty: {
+    textAlign: 'center',
+    color: '#666',
+    marginTop: 12,
+    fontSize: 14,
+  },
+  orderCard: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#fafafa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  orderHeading: {
+    fontWeight: '700',
+    marginBottom: 6,
+    color: '#333',
+  },
+  orderMeta: {
+    color: '#555',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  orderItem: {
+    color: '#000',
+    fontSize: 13,
+    marginTop: 4,
   },
 });

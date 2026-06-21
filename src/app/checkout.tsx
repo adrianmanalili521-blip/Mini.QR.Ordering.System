@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'rea
 import { X } from 'lucide-react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useCart } from '../../context/CartContext'
+import { createOrder } from '../lib/api'
 
 interface CheckoutScreenProps {
   visible: boolean
@@ -13,14 +14,24 @@ export default function CheckoutScreen({ visible, onClose }: CheckoutScreenProps
   const { cart, getTotalPrice, removeFromCart, updateQuantity, clearCart } = useCart()
   const [paymentMethod, setPaymentMethod] = useState<'qr' | 'cash' | null>(null)
   const [orderConfirmed, setOrderConfirmed] = useState(false)
+  const [orderError, setOrderError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const totalPrice = getTotalPrice()
   const qrValue = `EMBERV2|TOTAL:${totalPrice}|TS:${Date.now()}`
 
-  const canConfirm = paymentMethod !== null
+  const canConfirm = paymentMethod !== null && cart.length > 0
 
-  const handleConfirmOrder = () => {
-    if (paymentMethod && canConfirm) {
+  const handleConfirmOrder = async () => {
+    if (!paymentMethod || !canConfirm) {
+      return
+    }
+
+    setIsSubmitting(true)
+    setOrderError(null)
+
+    try {
+      await createOrder(cart, paymentMethod, totalPrice)
       setOrderConfirmed(true)
       setTimeout(() => {
         clearCart()
@@ -28,6 +39,10 @@ export default function CheckoutScreen({ visible, onClose }: CheckoutScreenProps
         setPaymentMethod(null)
         onClose()
       }, 2000)
+    } catch (error) {
+      setOrderError(error instanceof Error ? error.message : 'Unable to submit order')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -50,7 +65,7 @@ export default function CheckoutScreen({ visible, onClose }: CheckoutScreenProps
             <Text style={styles.emptyCartText}>Your cart is empty</Text>
           </View>
         ) : (
-          <>
+          <ScrollView style={styles.mainScroll}>
             <ScrollView style={styles.cartItems}>
               {cart.map((item) => (
                 <View key={item.id} style={styles.cartItem}>
@@ -129,14 +144,17 @@ export default function CheckoutScreen({ visible, onClose }: CheckoutScreenProps
               )}
             </View>
 
+            {orderError ? <Text style={styles.paymentFailText}>{orderError}</Text> : null}
+            {orderConfirmed ? <Text style={styles.paymentSuccessText}>Order placed successfully!</Text> : null}
+
             <TouchableOpacity
-              style={[styles.confirmButton, !canConfirm && styles.confirmButtonDisabled]}
+              style={[styles.confirmButton, (!canConfirm || isSubmitting) && styles.confirmButtonDisabled]}
               onPress={handleConfirmOrder}
-              disabled={!canConfirm}
+              disabled={!canConfirm || isSubmitting}
             >
-              <Text style={styles.confirmButtonText}>Confirm Order</Text>
+              <Text style={styles.confirmButtonText}>{isSubmitting ? 'Processing...' : 'Confirm Order'}</Text>
             </TouchableOpacity>
-          </>
+          </ScrollView>
         )}
       </View>
 
@@ -173,8 +191,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
   },
-  cartItems: {
+  mainScroll: {
     flex: 1,
+  },
+  cartItems: {
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -291,6 +311,7 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     borderRadius: 12,
     backgroundColor: '#fafafa',
+    marginBottom: 16,
   },
   qrLabel: {
     fontSize: 14,
@@ -362,19 +383,21 @@ const styles = StyleSheet.create({
   },
   paymentSuccessText: {
     marginTop: 12,
+    marginHorizontal: 16,
     textAlign: 'center',
     color: '#2e7d32',
     fontWeight: '600',
   },
   paymentFailText: {
     marginTop: 12,
+    marginHorizontal: 16,
     textAlign: 'center',
     color: '#d32f2f',
     fontWeight: '600',
   },
   confirmButton: {
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginVertical: 16,
     paddingVertical: 14,
     backgroundColor: '#de7a28',
     borderRadius: 8,

@@ -22,9 +22,9 @@ export default function FilterButton({ title, selected = false, onPress }: Filte
 const styles = StyleSheet.create({
     container: {
         borderWidth: 1,
-        height: 30,
-        width: 70,
-        borderRadius: 15,
+        height: 40,
+        paddingHorizontal: 12,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -38,9 +38,12 @@ const styles = StyleSheet.create({
     },
     textDefault: {
         color: '#000000',
+        fontSize: 14,
+        fontWeight: '500',
     },
     textSelected: {
         color: '#ffffff',
         fontWeight: '600',
+        fontSize: 14,
     },
 })
